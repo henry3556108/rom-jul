@@ -33,6 +33,9 @@ export type PeerMessage =
   | MarkUpdateMsg
   | NameChangeMsg
   | SendNameChangeMsg
+  | ColorChangeMsg
+  | SendColorChangeMsg
+  | RoomClosedMsg
 
 export interface PlayerInfoMsg {
   type: 'PlayerInfo'
@@ -83,6 +86,22 @@ export interface SendNameChangeMsg {
   type: 'SendNameChange'
   playerIndex: number
   newName: string
+}
+
+export interface ColorChangeMsg {
+  type: 'ColorChange'
+  playerIndex: number
+  newColor: string
+}
+
+export interface SendColorChangeMsg {
+  type: 'SendColorChange'
+  playerIndex: number
+  newColor: string
+}
+
+export interface RoomClosedMsg {
+  type: 'RoomClosed'
 }
 
 // ── Hints ──

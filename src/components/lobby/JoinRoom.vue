@@ -7,7 +7,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  join: [roomId: string, name: string, color: string]
+  join: [roomId: string, name: string]
   back: []
 }>()
 
@@ -19,7 +19,7 @@ watch(() => props.initialRoomId, (val) => {
 const loading = ref(false)
 const errorMsg = ref('')
 
-function handleSubmit(name: string, color: string) {
+function handleSubmit(name: string) {
   const trimmedId = targetRoomId.value.trim()
   if (!trimmedId) {
     errorMsg.value = '請輸入房間代碼'
@@ -27,7 +27,7 @@ function handleSubmit(name: string, color: string) {
   }
   loading.value = true
   errorMsg.value = ''
-  emit('join', trimmedId, name, color)
+  emit('join', trimmedId, name)
 }
 
 defineExpose({ setError: (msg: string) => { errorMsg.value = msg; loading.value = false } })

@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoom } from './composables/useRoom'
+import { PLAYER_COLORS } from './constants'
 import CreateRoom from './components/lobby/CreateRoom.vue'
 import JoinRoom from './components/lobby/JoinRoom.vue'
 import GameBoard from './components/game/GameBoard.vue'
@@ -17,15 +18,19 @@ const joinRoomRef = ref<InstanceType<typeof JoinRoom> | null>(null)
 const {
   state,
   inGame,
+  isHost,
   myPlayerIndex,
   roomId,
   isReady,
   error,
+  colorReady,
   createRoom,
   joinRoom,
   doMark,
   getHint,
   changeName,
+  changeColor,
+  kickPlayer,
   leave,
 } = useRoom()
 
@@ -40,17 +45,32 @@ onMounted(() => {
   }
 })
 
-async function handleCreate(name: string, color: string) {
+// Colors already taken by other players
+const takenColors = computed(() => {
+  return state.players
+    .filter((_, i) => i !== myPlayerIndex.value)
+    .map(p => p.color)
+    .filter(c => c !== '')
+})
+
+// Viewer's own color for legend
+const myColor = computed(() => {
+  const idx = myPlayerIndex.value
+  if (idx < 0 || idx >= state.players.length) return '#888'
+  return state.players[idx].color || '#888'
+})
+
+async function handleCreate(name: string) {
   try {
-    await createRoom(name, color)
+    await createRoom(name)
   } catch (e: any) {
     // error is set in useRoom
   }
 }
 
-async function handleJoin(targetRoomId: string, name: string, color: string) {
+async function handleJoin(targetRoomId: string, name: string) {
   try {
-    await joinRoom(targetRoomId, name, color)
+    await joinRoom(targetRoomId, name)
   } catch (e: any) {
     joinRoomRef.value?.setError(e.message || '加入房間失敗')
   }
@@ -59,6 +79,14 @@ async function handleJoin(targetRoomId: string, name: string, color: string) {
 function handleLeave() {
   leave()
   lobbyView.value = 'menu'
+}
+
+function handlePickColor(color: string) {
+  changeColor(color)
+}
+
+function handleKick(playerIndex: number) {
+  kickPlayer(playerIndex)
 }
 </script>
 
@@ -71,7 +99,13 @@ function handleLeave() {
 
     <!-- Lobby -->
     <main v-if="!inGame" class="lobby">
-      <template v-if="lobbyView === 'menu'">
+      <!-- Show error from RoomClosed -->
+      <div v-if="error" class="card menu">
+        <p class="error-msg">{{ error }}</p>
+        <button @click="error = ''; lobbyView = 'menu'">返回首頁</button>
+      </div>
+
+      <template v-else-if="lobbyView === 'menu'">
         <div class="card menu">
           <h2>羅密歐與茱麗葉</h2>
           <p class="subtitle">組隊任務協作小幫手</p>
@@ -99,16 +133,35 @@ function handleLeave() {
 
     <!-- Game -->
     <main v-else class="game-layout">
+      <!-- Color picker overlay -->
+      <div v-if="!colorReady" class="color-overlay">
+        <div class="card color-picker-card">
+          <h2>選擇你的顏色</h2>
+          <div class="color-buttons">
+            <button
+              v-for="color in PLAYER_COLORS"
+              :key="color"
+              class="color-btn"
+              :style="{ background: color }"
+              :disabled="takenColors.includes(color)"
+              @click="handlePickColor(color)"
+            />
+          </div>
+        </div>
+      </div>
+
       <div class="game-sidebar">
         <RoomInfo :room-id="roomId" />
-        <HintLegend />
+        <HintLegend :my-color="myColor" />
         <button class="leave-btn" @click="handleLeave">離開房間</button>
       </div>
-      <div class="game-main">
+      <div class="game-main" :class="{ 'board-locked': !colorReady }">
         <PlayerList
           :players="state.players"
           :my-index="myPlayerIndex"
+          :is-host="isHost"
           @name-change="changeName"
+          @kick="handleKick"
         />
         <GameBoard
           :state="state"
@@ -178,12 +231,19 @@ function handleLeave() {
   font-size: 15px;
 }
 
+.error-msg {
+  color: var(--accent);
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
 /* ── Game ── */
 .game-layout {
   flex: 1;
   display: flex;
   gap: 10px;
   padding: 8px 12px;
+  position: relative;
 }
 
 .game-sidebar {
@@ -199,6 +259,11 @@ function handleLeave() {
   min-width: 0;
 }
 
+.board-locked {
+  pointer-events: none;
+  opacity: 0.5;
+}
+
 .leave-btn {
   margin-top: auto;
   background: transparent;
@@ -210,6 +275,55 @@ function handleLeave() {
   background: var(--accent);
   color: #fff;
   border-color: var(--accent);
+}
+
+/* ── Color Picker Overlay ── */
+.color-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.color-picker-card {
+  text-align: center;
+  padding: 24px 32px;
+}
+
+.color-picker-card h2 {
+  font-size: 18px;
+  margin-bottom: 16px;
+}
+
+.color-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.color-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 3px solid transparent;
+  padding: 0;
+  min-width: unset;
+  cursor: pointer;
+  transition: transform 0.15s, border-color 0.15s;
+}
+
+.color-btn:hover:not(:disabled) {
+  transform: scale(1.15);
+  border-color: #fff;
+  background: unset;
+}
+
+.color-btn:disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
 }
 
 @media (max-width: 640px) {

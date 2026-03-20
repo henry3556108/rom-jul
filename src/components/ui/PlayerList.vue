@@ -6,10 +6,12 @@ import { MAX_PLAYERS, PLAYER_COLORS } from '../../constants'
 defineProps<{
   players: Player[]
   myIndex: number
+  isHost: boolean
 }>()
 
 const emit = defineEmits<{
   nameChange: [newName: string]
+  kick: [playerIndex: number]
 }>()
 
 const editingIndex = ref(-1)
@@ -62,7 +64,15 @@ function commitEdit() {
             >{{ players[i - 1].name }}</span>
             <span class="me-tag">我</span>
           </template>
-          <span v-else class="name">{{ players[i - 1].name }}</span>
+          <template v-else>
+            <span class="name">{{ players[i - 1].name }}</span>
+            <button
+              v-if="isHost"
+              class="kick-btn"
+              title="踢出玩家"
+              @click="emit('kick', i - 1)"
+            >✗</button>
+          </template>
         </template>
         <template v-else>
           <span class="dot empty-dot" :style="{ borderColor: PLAYER_COLORS[i - 1] }"></span>
@@ -150,5 +160,25 @@ function commitEdit() {
   padding: 0px 5px;
   border-radius: 4px;
   flex-shrink: 0;
+}
+
+.kick-btn {
+  margin-left: auto;
+  padding: 0 4px;
+  min-width: unset;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--accent);
+  background: transparent;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  cursor: pointer;
+  line-height: 1.4;
+  flex-shrink: 0;
+}
+
+.kick-btn:hover {
+  background: var(--accent);
+  color: #fff;
 }
 </style>

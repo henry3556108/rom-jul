@@ -3,18 +3,18 @@ import { ref } from 'vue'
 import PlayerSetup from './PlayerSetup.vue'
 
 const emit = defineEmits<{
-  create: [name: string, color: string]
+  create: [name: string]
   back: []
 }>()
 
 const loading = ref(false)
 const errorMsg = ref('')
 
-async function handleSubmit(name: string, color: string) {
+async function handleSubmit(name: string) {
   loading.value = true
   errorMsg.value = ''
   try {
-    emit('create', name, color)
+    emit('create', name)
   } catch (e: any) {
     errorMsg.value = e.message || '建立房間失敗'
     loading.value = false

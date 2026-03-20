@@ -3,10 +3,10 @@ export const DOOR_COUNT = 4
 export const MAX_PLAYERS = 4
 
 export const PLAYER_COLORS = [
-  '#e74c3c', // 紅
-  '#3498db', // 藍
-  '#2ecc71', // 綠
-  '#f39c12', // 橘
+  '#cccc00', // 黃
+  '#00cc00', // 綠
+  '#00cccc', // 藍
+  '#cc00cc', // 紫
 ] as const
 
 export const FLOOR_LABELS = Array.from(

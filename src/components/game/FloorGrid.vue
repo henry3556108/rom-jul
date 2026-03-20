@@ -23,6 +23,16 @@ function getMarks(doorIndex: number): PlayerMark[] {
   }))
 }
 
+/** Returns the doorIndex that the viewer confirmed on this floor, or -1 */
+function getViewerConfirmedDoor(): number {
+  const floor = props.state.floors[props.floorIndex]
+  if (!floor) return -1
+  for (let d = 0; d < DOOR_COUNT; d++) {
+    if (floor[props.myPlayerIndex]?.[d]?.state === CellState.Confirmed) return d
+  }
+  return -1
+}
+
 function handleLeftClick(doorIndex: number, playerIndex: number) {
   const current = props.state.floors[props.floorIndex]?.[playerIndex]?.[doorIndex]?.state ?? CellState.Unknown
   const newState = current === CellState.Confirmed ? CellState.Unknown : CellState.Confirmed
@@ -44,6 +54,8 @@ function handleRightClick(doorIndex: number, playerIndex: number) {
       :key="d"
       :marks="getMarks(d - 1)"
       :my-player-index="myPlayerIndex"
+      :door-index="d - 1"
+      :viewer-confirmed-door="getViewerConfirmedDoor()"
       @left-click="(pi) => handleLeftClick(d - 1, pi)"
       @right-click="(pi) => handleRightClick(d - 1, pi)"
     />

@@ -78,6 +78,10 @@ export function useHints(state: Reactive<GameState>) {
 
         const candidatePlayers: number[] = []
         for (let p = 0; p < playerCount; p++) {
+          // Skip players who confirmed a different door on this floor
+          const confirmedOther = Array.from({ length: DOOR_COUNT }, (_, od) => od)
+            .some(od => od !== d && floor[p]?.[od]?.state === CellState.Confirmed)
+          if (confirmedOther) continue
           if ((floor[p]?.[d]?.state ?? CellState.Unknown) === CellState.Unknown) {
             candidatePlayers.push(p)
           }
