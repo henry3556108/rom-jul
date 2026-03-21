@@ -96,6 +96,7 @@ function handleKick(playerIndex: number) {
     <header class="app-header">
       <h1>R&J 組隊任務小幫手</h1>
       <ConnectionStatus v-if="inGame" :is-ready="isReady" :error="error" />
+      <span v-else class="author-tag">製作者：吐司去邊先生 · 公會：MAYOIUTA</span>
     </header>
 
     <!-- Lobby -->
@@ -194,6 +195,11 @@ function handleKick(playerIndex: number) {
 .app-header h1 {
   font-size: 16px;
   font-weight: 700;
+}
+
+.author-tag {
+  font-size: 12px;
+  color: var(--text-muted);
 }
 
 /* ── Lobby ── */
