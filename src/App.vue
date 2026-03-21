@@ -94,7 +94,7 @@ function handleKick(playerIndex: number) {
 <template>
   <div class="app-container">
     <header class="app-header">
-      <h1>R&J 組隊任務小幫手</h1>
+      <h1>R&J 組隊任務小工具</h1>
       <ConnectionStatus v-if="inGame" :is-ready="isReady" :error="error" />
       <span v-else class="author-tag">製作者：吐司去邊先生 · 公會：MAYOIUTA</span>
     </header>
@@ -110,7 +110,7 @@ function handleKick(playerIndex: number) {
       <template v-else-if="lobbyView === 'menu'">
         <div class="card menu">
           <h2>羅密歐與茱麗葉</h2>
-          <p class="subtitle">組隊任務協作小幫手</p>
+          <p class="subtitle">組隊任務協作小工具</p>
           <div class="menu-buttons">
             <button @click="lobbyView = 'create'">建立房間</button>
             <button @click="lobbyView = 'join'">加入房間</button>
