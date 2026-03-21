@@ -30,6 +30,7 @@ const {
   getHint,
   changeName,
   changeColor,
+  clearAll,
   kickPlayer,
   leave,
 } = useRoom()
@@ -153,6 +154,7 @@ function handleKick(playerIndex: number) {
       <div class="game-sidebar">
         <RoomInfo :room-id="roomId" />
         <HintLegend :my-color="myColor" />
+        <button v-if="isHost" class="clear-all-btn" @click="clearAll">清空所有標記</button>
         <button class="leave-btn" @click="handleLeave">離開房間</button>
       </div>
       <div class="game-main" :class="{ 'board-locked': !colorReady }">
@@ -264,8 +266,20 @@ function handleKick(playerIndex: number) {
   opacity: 0.5;
 }
 
-.leave-btn {
+.clear-all-btn {
   margin-top: auto;
+  background: transparent;
+  border-color: var(--text-muted);
+  color: var(--text-muted);
+}
+
+.clear-all-btn:hover {
+  background: var(--text-muted);
+  color: #fff;
+  border-color: var(--text-muted);
+}
+
+.leave-btn {
   background: transparent;
   border-color: var(--accent);
   color: var(--accent);

@@ -54,6 +54,10 @@ export function useGameState() {
     state.floors.splice(0, state.floors.length, ...newState.floors)
   }
 
+  function clearAllMarks() {
+    state.floors.splice(0, state.floors.length, ...createEmptyFloors())
+  }
+
   /** Get a plain copy for serialization */
   function snapshot(): GameState {
     return JSON.parse(JSON.stringify(state))
@@ -66,6 +70,7 @@ export function useGameState() {
     setMark,
     getMark,
     ensurePlayerRows,
+    clearAllMarks,
     replaceState,
     snapshot,
   }

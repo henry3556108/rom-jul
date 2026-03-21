@@ -23,7 +23,7 @@ import type { CellMark } from '../types'
 
 export function useRoom() {
   const { isReady, error, createPeer, connectTo, onConnection, onData, destroy } = usePeer()
-  const { state, addPlayer, removePlayer, setMark, ensurePlayerRows, replaceState, snapshot } = useGameState()
+  const { state, addPlayer, removePlayer, setMark, ensurePlayerRows, clearAllMarks, replaceState, snapshot } = useGameState()
   const { hints, getHint } = useHints(state)
 
   const isHost = ref(false)
@@ -110,14 +110,19 @@ export function useRoom() {
       }
       case 'SendMark': {
         const sMsg = msg as SendMarkMsg
-        // Validate: if confirming, check no other player already confirmed same door
+        // Validate: if confirming, check constraints
         if (sMsg.state === CellState.Confirmed) {
           const floor = state.floors[sMsg.floorIndex]
           if (floor) {
+            // No other player already confirmed same door
             const alreadyConfirmed = floor.some(
               (row, pIdx) => pIdx !== sMsg.playerIndex && row[sMsg.doorIndex]?.state === CellState.Confirmed,
             )
             if (alreadyConfirmed) break // ignore
+
+            // This player hasn't already confirmed another door on this floor
+            const playerRow = floor[sMsg.playerIndex]
+            if (playerRow?.some((cell, d) => d !== sMsg.doorIndex && cell?.state === CellState.Confirmed)) break
           }
         }
         setMark(sMsg.floorIndex, sMsg.playerIndex, sMsg.doorIndex, sMsg.state)
@@ -263,6 +268,10 @@ export function useRoom() {
         state.players[ccMsg.playerIndex].color = ccMsg.newColor
         break
       }
+      case 'ClearAllMarks': {
+        clearAllMarks()
+        break
+      }
       case 'RoomClosed': {
         inGame.value = false
         error.value = '房主已關閉房間'
@@ -276,14 +285,19 @@ export function useRoom() {
     // Only allow marking own row
     if (playerIndex !== myPlayerIndex.value) return
 
-    // Validate: if confirming, check no other player already confirmed same door
+    // Validate: if confirming, check constraints
     if (newState === CellState.Confirmed) {
       const floor = state.floors[floorIndex]
       if (floor) {
+        // No other player already confirmed same door
         const alreadyConfirmed = floor.some(
           (row, pIdx) => pIdx !== playerIndex && row[doorIndex]?.state === CellState.Confirmed,
         )
         if (alreadyConfirmed) return
+
+        // This player hasn't already confirmed another door on this floor
+        const playerRow = floor[playerIndex]
+        if (playerRow?.some((cell, d) => d !== doorIndex && cell?.state === CellState.Confirmed)) return
       }
     }
 
@@ -357,6 +371,12 @@ export function useRoom() {
     }
   }
 
+  function clearAll() {
+    if (!isHost.value) return
+    clearAllMarks()
+    broadcast({ type: 'ClearAllMarks' })
+  }
+
   function kickPlayer(playerIndex: number) {
     if (!isHost.value) return
     const player = state.players[playerIndex]
@@ -412,6 +432,7 @@ export function useRoom() {
     getHint,
     changeName,
     changeColor,
+    clearAll,
     kickPlayer,
     leave,
   }

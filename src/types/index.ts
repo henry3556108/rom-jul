@@ -35,6 +35,7 @@ export type PeerMessage =
   | SendNameChangeMsg
   | ColorChangeMsg
   | SendColorChangeMsg
+  | ClearAllMarksMsg
   | RoomClosedMsg
 
 export interface PlayerInfoMsg {
@@ -98,6 +99,10 @@ export interface SendColorChangeMsg {
   type: 'SendColorChange'
   playerIndex: number
   newColor: string
+}
+
+export interface ClearAllMarksMsg {
+  type: 'ClearAllMarks'
 }
 
 export interface RoomClosedMsg {
