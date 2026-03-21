@@ -18,3 +18,7 @@ export const DOOR_LABELS = Array.from(
   { length: DOOR_COUNT },
   (_, i) => `門 ${i + 1}`,
 )
+
+// Ping/Pong health check
+export const PING_INTERVAL = 10_000  // Send ping every 10 seconds
+export const PONG_TIMEOUT = 15_000   // Disconnect if no response in 15 seconds

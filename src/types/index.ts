@@ -13,6 +13,7 @@ export type FloorState = CellMark[][]
 
 export interface Player {
   id: string       // PeerJS connection ID (host uses 'host')
+  uid: string      // Stable identity for reconnection detection
   name: string
   color: string
 }
@@ -37,9 +38,12 @@ export type PeerMessage =
   | SendColorChangeMsg
   | ClearAllMarksMsg
   | RoomClosedMsg
+  | PingMsg
+  | PongMsg
 
 export interface PlayerInfoMsg {
   type: 'PlayerInfo'
+  uid: string
   name: string
   color: string
 }
@@ -107,6 +111,14 @@ export interface ClearAllMarksMsg {
 
 export interface RoomClosedMsg {
   type: 'RoomClosed'
+}
+
+export interface PingMsg {
+  type: 'Ping'
+}
+
+export interface PongMsg {
+  type: 'Pong'
 }
 
 // ── Hints ──

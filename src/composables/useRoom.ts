@@ -18,7 +18,7 @@ import type {
   RoomClosedMsg,
 } from '../types'
 import { CellState } from '../types'
-import { MAX_PLAYERS, DOOR_COUNT } from '../constants'
+import { MAX_PLAYERS, DOOR_COUNT, PING_INTERVAL, PONG_TIMEOUT } from '../constants'
 import type { CellMark } from '../types'
 
 export function useRoom() {
@@ -33,6 +33,10 @@ export function useRoom() {
 
   // Host tracks connections
   const connections = shallowRef<DataConnection[]>([])
+
+  // Host: track last activity per connection for ping/pong
+  const lastActivity = new Map<string, number>()
+  let pingInterval: ReturnType<typeof setInterval> | null = null
 
   // ── Host: broadcast to all joiners ──
   function broadcast(msg: PeerMessage, exclude?: DataConnection) {
@@ -63,13 +67,14 @@ export function useRoom() {
     roomId.value = id
 
     // Add self as first player (color empty — chosen later)
-    myPlayerIndex.value = addPlayer({ id: 'host', name, color: '' })
+    myPlayerIndex.value = addPlayer({ id: 'host', uid: 'host', name, color: '' })
     ensurePlayerRows()
     inGame.value = true
 
     // Handle incoming connections
     onConnection((conn) => {
       connections.value = [...connections.value, conn]
+      lastActivity.set(conn.peer, Date.now())
 
       conn.on('close', () => {
         handleDisconnect(conn)
@@ -79,33 +84,75 @@ export function useRoom() {
     // Handle incoming data
     onData((data, conn) => {
       const msg = data as PeerMessage
+      lastActivity.set(conn.peer, Date.now())
       handleHostMessage(msg, conn)
     })
+
+    // Start ping/pong health check
+    pingInterval = setInterval(() => {
+      const now = Date.now()
+      for (const conn of connections.value) {
+        if (conn.open) {
+          send(conn, { type: 'Ping' })
+        }
+        const last = lastActivity.get(conn.peer)
+        if (last && now - last > PONG_TIMEOUT) {
+          handleDisconnect(conn)
+        }
+      }
+    }, PING_INTERVAL)
   }
 
   function handleHostMessage(msg: PeerMessage, conn: DataConnection) {
     switch (msg.type) {
       case 'PlayerInfo': {
-        if (state.players.length >= MAX_PLAYERS) return
         const pMsg = msg as PlayerInfoMsg
-        const idx = addPlayer({ id: conn.peer, name: pMsg.name, color: pMsg.color })
-        ensurePlayerRows()
+        const existingIdx = state.players.findIndex(p => p.uid === pMsg.uid)
 
-        // Send FullSync to the new joiner
-        const syncMsg: FullSyncMsg = {
-          type: 'FullSync',
-          gameState: snapshot(),
-          yourIndex: idx,
-        }
-        send(conn, syncMsg)
+        if (existingIdx !== -1) {
+          // ── Reconnection: same uid found ──
+          const oldPlayer = state.players[existingIdx]
+          // Close old connection if still around
+          const oldConn = connections.value.find(c => c.peer === oldPlayer.id)
+          if (oldConn && oldConn !== conn) {
+            oldConn.close()
+            connections.value = connections.value.filter(c => c !== oldConn)
+            lastActivity.delete(oldConn.peer)
+          }
+          // Update player's peer id and name
+          oldPlayer.id = conn.peer
+          oldPlayer.name = pMsg.name
 
-        // Notify all others
-        const joinedMsg: PlayerJoinedMsg = {
-          type: 'PlayerJoined',
-          player: { id: conn.peer, name: pMsg.name, color: pMsg.color },
-          playerIndex: idx,
+          // Send FullSync to the reconnected joiner (with their original index)
+          const syncMsg: FullSyncMsg = {
+            type: 'FullSync',
+            gameState: snapshot(),
+            yourIndex: existingIdx,
+          }
+          send(conn, syncMsg)
+          // No PlayerJoined broadcast — they were already in the room
+        } else {
+          // ── New player ──
+          if (state.players.length >= MAX_PLAYERS) return
+          const idx = addPlayer({ id: conn.peer, uid: pMsg.uid, name: pMsg.name, color: pMsg.color })
+          ensurePlayerRows()
+
+          // Send FullSync to the new joiner
+          const syncMsg: FullSyncMsg = {
+            type: 'FullSync',
+            gameState: snapshot(),
+            yourIndex: idx,
+          }
+          send(conn, syncMsg)
+
+          // Notify all others
+          const joinedMsg: PlayerJoinedMsg = {
+            type: 'PlayerJoined',
+            player: { id: conn.peer, uid: pMsg.uid, name: pMsg.name, color: pMsg.color },
+            playerIndex: idx,
+          }
+          broadcast(joinedMsg, conn)
         }
-        broadcast(joinedMsg, conn)
         break
       }
       case 'SendMark': {
@@ -164,6 +211,8 @@ export function useRoom() {
 
   function handleDisconnect(conn: DataConnection) {
     connections.value = connections.value.filter(c => c !== conn)
+    lastActivity.delete(conn.peer)
+    try { conn.close() } catch {}
 
     // Find player by connection peer id
     const playerIdx = state.players.findIndex(p => p.id === conn.peer)
@@ -194,6 +243,14 @@ export function useRoom() {
     roomId.value = targetRoomId
     await createPeer()
 
+    // Get or create stable uid for reconnection detection
+    const uidKey = 'rjpq-uid'
+    let uid = localStorage.getItem(uidKey)
+    if (!uid) {
+      uid = crypto.randomUUID()
+      localStorage.setItem(uidKey, uid)
+    }
+
     onData((data, _conn) => {
       const msg = data as PeerMessage
       handleJoinerMessage(msg)
@@ -204,6 +261,7 @@ export function useRoom() {
     // Send player info (color empty — chosen later)
     const infoMsg: PlayerInfoMsg = {
       type: 'PlayerInfo',
+      uid,
       name,
       color: '',
     }
@@ -270,6 +328,11 @@ export function useRoom() {
       }
       case 'ClearAllMarks': {
         clearAllMarks()
+        break
+      }
+      case 'Ping': {
+        const hostConn = connections.value[0]
+        if (hostConn?.open) hostConn.send({ type: 'Pong' })
         break
       }
       case 'RoomClosed': {
@@ -391,6 +454,11 @@ export function useRoom() {
       const msg: RoomClosedMsg = { type: 'RoomClosed' }
       broadcast(msg)
     }
+    if (pingInterval) {
+      clearInterval(pingInterval)
+      pingInterval = null
+    }
+    lastActivity.clear()
     destroy()
     inGame.value = false
     connections.value = []
