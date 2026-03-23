@@ -178,7 +178,7 @@ function handleKick(playerIndex: number) {
     <footer class="app-footer">
       本工具使用 Google Analytics 收集匿名使用統計，不會收集任何個人資訊。
       <br>
-      附註：個人開發者只是想記錄這個小工具有多少人用 XD
+      附註：個人開發者只是想記錄這個小工具有多少人用 XD｜<a href="https://github.com/henry3556108/rom-jul" target="_blank" rel="noopener">GitHub 開源專案</a>
     </footer>
   </div>
 </template>
