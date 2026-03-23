@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, onUnmounted } from 'vue'
 import { CellState, HintType, type Player } from '../../types'
 
 export interface PlayerMark {
@@ -117,7 +117,54 @@ const cellStyle = computed(() => {
   }
 })
 
+// ── Long-press detection for mobile (iOS doesn't reliably fire contextmenu) ──
+const LONG_PRESS_MS = 500
+const MOVE_THRESHOLD = 10
+let longPressTimer: ReturnType<typeof setTimeout> | null = null
+let touchStartX = 0
+let touchStartY = 0
+const didLongPress = ref(false)
+
+function clearLongPress() {
+  if (longPressTimer) {
+    clearTimeout(longPressTimer)
+    longPressTimer = null
+  }
+}
+
+function onTouchStart(e: TouchEvent) {
+  const touch = e.touches[0]
+  touchStartX = touch.clientX
+  touchStartY = touch.clientY
+  didLongPress.value = false
+
+  longPressTimer = setTimeout(() => {
+    didLongPress.value = true
+    emit('rightClick', props.myPlayerIndex)
+  }, LONG_PRESS_MS)
+}
+
+function onTouchMove(e: TouchEvent) {
+  if (!longPressTimer) return
+  const touch = e.touches[0]
+  const dx = touch.clientX - touchStartX
+  const dy = touch.clientY - touchStartY
+  if (Math.abs(dx) > MOVE_THRESHOLD || Math.abs(dy) > MOVE_THRESHOLD) {
+    clearLongPress()
+  }
+}
+
+function onTouchEnd() {
+  clearLongPress()
+}
+
+onUnmounted(clearLongPress)
+
 function handleClick() {
+  if (didLongPress.value) {
+    didLongPress.value = false
+    return
+  }
   emit('leftClick', props.myPlayerIndex)
 }
 
@@ -138,6 +185,10 @@ function handleContext(e: MouseEvent) {
     :style="cellStyle"
     @click="handleClick"
     @contextmenu="handleContext"
+    @touchstart.passive="onTouchStart"
+    @touchmove.passive="onTouchMove"
+    @touchend.passive="onTouchEnd"
+    @touchcancel.passive="onTouchEnd"
   >
     <!-- Viewer confirmed this door -->
     <div v-if="display.type === 'viewer-confirmed'" class="cell-content confirmed-icon">
@@ -185,6 +236,8 @@ function handleContext(e: MouseEvent) {
   text-align: center;
   height: 36px;
   width: 60px;
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
 }
 
 .door-cell:hover {
