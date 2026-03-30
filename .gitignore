@@ -4,3 +4,6 @@ dist
 tsconfig.tsbuildinfo
 .claude/
 .vite/
+.env
+.env.*
+!.env.example
