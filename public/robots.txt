@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://henry3556108.github.io/rom-jul/sitemap.xml
